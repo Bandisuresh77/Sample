@@ -1,0 +1,183 @@
+import java.util.*;
+
+class Elevator {
+    enum State { IDLE, MOVING }
+    enum Direction { UP, DOWN }
+
+    private int currentFloor;
+    private State state;
+    private Direction direction;
+
+    public Elevator() {
+        this.currentFloor = 1;
+        this.state = State.IDLE;
+        this.direction = Direction.UP;
+    }
+
+    public void processRequests(Map<Integer, Request> requests) {
+        // Separate requests by direction
+        Queue<Request> upRequests = new PriorityQueue<>(Comparator.comparingInt(r -> r.destinationFloor));
+        Queue<Request> downRequests = new PriorityQueue<>((r1, r2) -> r2.destinationFloor - r1.destinationFloor);
+
+        for (Request request : requests.values()) {
+            if (request.direction == Direction.UP) {
+                upRequests.add(request);
+            } else {
+                downRequests.add(request);
+            }
+        }
+
+        // Handle all UP requests first
+        handleRequests(upRequests, Direction.UP);
+
+        // Then handle all DOWN requests
+        handleRequests(downRequests, Direction.DOWN);
+    }
+
+    /**
+     * Handle a queue of requests in the specified direction.
+     *
+     * @param requests a queue of requests
+     * @param direction the direction of the requests
+     */
+    
+    
+     private void handleRequests(Queue<Request> requests, Direction direction) {
+        // Separate requests into upward and downward queues
+        Queue<Request> upwardRequests = new PriorityQueue<>(Comparator.comparingInt(r -> r.destinationFloor));
+        Queue<Request> downwardRequests = new PriorityQueue<>((r1, r2) -> r2.destinationFloor - r1.destinationFloor);
+    
+        for (Request request : requests) {
+            if (request.direction == Direction.UP) {
+                upwardRequests.add(request);
+            } else {
+                downwardRequests.add(request);
+            }
+        }
+    
+        // Process upward requests first
+        processDirectionalRequests(upwardRequests, Direction.UP);
+    
+        // Process downward requests after upward requests are completed
+        processDirectionalRequests(downwardRequests, Direction.DOWN);
+    }
+    
+    /**
+     * Process requests in a specific direction (UP or DOWN).
+     *
+     * @param requests the queue of requests for the given direction
+     * @param direction the direction of movement (UP or DOWN)
+     */
+    private void processDirectionalRequests(Queue<Request> requests, Direction direction) {
+        // Create separate TreeSets for source and destination floors
+        TreeSet<Integer> sourceFloors = new TreeSet<>();
+        TreeSet<Integer> destinationFloors = new TreeSet<>();
+    
+        // Add all source and destination floors to their respective TreeSets
+        for (Request request : requests) {
+            sourceFloors.add(request.sourceFloor);
+            destinationFloors.add(request.destinationFloor);
+        }
+        if(direction==Direction.DOWN){
+            // Sort the destination floors in descending order
+            sourceFloors=new TreeSet<>(sourceFloors.descendingSet());
+            destinationFloors = new TreeSet<>(destinationFloors.descendingSet());
+        }
+
+        // Process all floors in sorted order
+        while (!sourceFloors.isEmpty() || !destinationFloors.isEmpty()) {
+            // Get the next source and destination floors (if available)
+            Integer nextSourceFloor = sourceFloors.isEmpty() ? null : sourceFloors.first();
+            Integer nextDestinationFloor = destinationFloors.isEmpty() ? null : destinationFloors.first();
+    
+            // Determine the next floor to visit
+            int nextFloor;
+            if (nextSourceFloor != null && nextDestinationFloor != null) {
+                // Choose the smaller floor between the next source and destination for UP direction
+                // Choose the larger floor for DOWN direction
+                nextFloor = (direction == Direction.UP) ? Math.min(nextSourceFloor, nextDestinationFloor)
+                                                      : Math.max(nextSourceFloor, nextDestinationFloor);
+            } else if (nextSourceFloor != null) {
+                nextFloor = nextSourceFloor;
+            } else {
+                nextFloor = nextDestinationFloor;
+            }
+    
+            // Move to the next floor
+            if (sourceFloors.contains(nextFloor)) {
+                moveTo(nextFloor, true, "Stopped at floor " + nextFloor + ". Opening doors.");
+                sourceFloors.remove(nextFloor); // Remove the processed source floor
+            } else if (destinationFloors.contains(nextFloor)) {
+                moveTo(nextFloor, true, "Destination reached at floor " + nextFloor + ". Opening doors.");
+                destinationFloors.remove(nextFloor); // Remove the processed destination floor
+            }
+        }
+    }
+    /**
+     * Move the elevator to the specified floor.
+     *
+     * @param targetFloor the floor to move to
+     * @param stopAtTarget whether to stop at the target floor
+     * @param stopMessage the message to display when stopping at the target floor
+     */
+    private void moveTo(int targetFloor, boolean stopAtTarget, String stopMessage) {
+        if (currentFloor != targetFloor) {
+            System.out.println("Elevator started moving from floor: " + currentFloor);
+        }
+
+        while (currentFloor != targetFloor) {
+            state = State.MOVING;
+            if (currentFloor < targetFloor) {
+                direction = Direction.UP;
+                currentFloor++;
+            } else {
+                direction = Direction.DOWN;
+                currentFloor--;
+            }
+
+            System.out.println("Elevator at floor: " + currentFloor);
+
+            try {
+                Thread.sleep(1000); // Simulate 1 second per floor
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        if (stopAtTarget) {
+            state = State.IDLE;
+            System.out.println(stopMessage);
+        }
+    }
+}
+
+class Request {
+    int sourceFloor;
+    int destinationFloor;
+    Elevator.Direction direction;
+
+    public Request(int sourceFloor, int destinationFloor, Elevator.Direction direction) {
+        this.sourceFloor = sourceFloor;
+        this.destinationFloor = destinationFloor;
+        this.direction = direction;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Elevator elevator = new Elevator();
+
+        // Sample requests
+        Map<Integer, Request> requests = new HashMap<>();
+        requests.put(1, new Request(1, 6, Elevator.Direction.UP));
+        requests.put(2, new Request(2, 7, Elevator.Direction.UP));
+        requests.put(3, new Request(3, 1, Elevator.Direction.DOWN));
+        requests.put(4, new Request(9, 8, Elevator.Direction.DOWN));
+        requests.put(5, new Request(1, 6, Elevator.Direction.UP));
+        requests.put(6, new Request(2, 7, Elevator.Direction.UP));
+        requests.put(7, new Request(3, 1, Elevator.Direction.DOWN));
+        requests.put(8, new Request(9, 8, Elevator.Direction.DOWN));
+
+        elevator.processRequests(requests);
+    }
+}
